@@ -24,15 +24,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check active session on load
+    const initTimer = setTimeout(() => {
+      setIsInitialized(true);
+    }, 2000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(initTimer);
       if (session?.user) {
         setUser({
           email: session.user.email || '',
-          name: session.user.user_metadata?.name || 'Rômulo Brandão', // Fallback or read from metadata
-          role: 'superadmin', // Keeping role static for now
+          name: session.user.user_metadata?.name || 'Rômulo Brandão',
+          role: 'superadmin',
           id: session.user.id
         });
       }
+      setIsInitialized(true);
+    }).catch(() => {
+      clearTimeout(initTimer);
       setIsInitialized(true);
     });
 
