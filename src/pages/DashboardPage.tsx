@@ -1,13 +1,145 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/CardElement';
-import { mockDashboardData, mockDailyData } from '@/lib/mockData';
 import { formatCurrency, formatPercent, formatRoas } from '@/lib/formatters';
-import { TrendingUp, Target, HandCoins, Activity, CalendarClock } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { TrendingUp, Target, HandCoins, Activity, CalendarClock, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
 
+interface DashboardData {
+  revenue: number;
+  goal: number;
+  goal_average: number;
+  goal_super: number;
+  projection: number;
+  ad_investment: number;
+  social_investment: number;
+  totalLeads: number;
+  totalConversations: number;
+  totalSchedules: number;
+  totalAttendances: number;
+  totalSales: number;
+  roas: number;
+  businessDays: number;
+  totalBusinessDays: number;
+}
+
+interface DailyChartData {
+  day: number;
+  anuncio: number;
+  social: number;
+  recorrente: number;
+  indicacao: number;
+}
+
 export const Dashboard: React.FC = () => {
-  const data = mockDashboardData.currentMonth;
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [dailyChart, setDailyChart] = useState<DailyChartData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endOfMonth = new Date(year, month, 0);
+    const endOfMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+    const today = now.getDate();
+    const totalDaysInMonth = endOfMonth.getDate();
+
+    // Fetch daily entries for current month
+    const { data: entries } = await supabase
+      .from('daily_entries')
+      .select('*')
+      .gte('date', startOfMonth)
+      .lte('date', endOfMonthStr)
+      .order('date', { ascending: true });
+
+    // Fetch settings (goals)
+    const { data: settingsRows } = await supabase
+      .from('settings')
+      .select('*')
+      .in('key', ['metas', 'investimento']);
+
+    const metas = settingsRows?.find(s => s.key === 'metas')?.value || { goal: 153000, goal_average: 175000, goal_super: 220000 };
+    const investimento = settingsRows?.find(s => s.key === 'investimento')?.value || { meta_ads: 11000, social_selling: 1515 };
+
+    const safeEntries = entries || [];
+
+    // Calculate totals
+    let totalRevenue = 0;
+    let totalLeads = 0;
+    let totalConversations = 0;
+    let totalSchedules = 0;
+    let totalAttendances = 0;
+    let totalSales = 0;
+    let totalAdInvestment = 0;
+    let totalSocialInvestment = 0;
+
+    // Group by day for chart
+    const dayMap: Record<number, DailyChartData> = {};
+
+    for (const entry of safeEntries) {
+      const day = new Date(entry.date + 'T00:00:00').getDate();
+      totalRevenue += Number(entry.revenue_projected) || 0;
+      totalLeads += entry.leads || 0;
+      totalConversations += entry.conversations || 0;
+      totalSchedules += entry.schedules || 0;
+      totalAttendances += entry.attendances || 0;
+      totalSales += entry.sales || 0;
+      totalAdInvestment += (Number(entry.ad_investment_meta) || 0) + (Number(entry.ad_investment_google) || 0);
+      totalSocialInvestment += Number(entry.access_social_selling) || 0;
+
+      if (!dayMap[day]) {
+        dayMap[day] = { day, anuncio: 0, social: 0, recorrente: 0, indicacao: 0 };
+      }
+
+      const ch = entry.channel;
+      const rev = Number(entry.revenue_projected) || 0;
+      if (ch === 'anuncio') dayMap[day].anuncio += rev;
+      else if (ch === 'social') dayMap[day].social += rev;
+      else if (ch === 'recorrente') dayMap[day].recorrente += rev;
+      else if (ch === 'indicacao') dayMap[day].indicacao += rev;
+    }
+
+    const chartData = Object.values(dayMap).sort((a, b) => a.day - b.day);
+
+    const daysElapsed = Math.max(today, 1);
+    const projection = daysElapsed > 0 ? (totalRevenue / daysElapsed) * totalDaysInMonth : 0;
+    const totalInvestment = totalAdInvestment + totalSocialInvestment;
+    const roas = totalInvestment > 0 ? totalRevenue / totalInvestment : 0;
+
+    // Estimate business days (rough: ~22 per month)
+    const totalBusinessDays = 22;
+    const businessDaysElapsed = Math.round((today / totalDaysInMonth) * totalBusinessDays);
+
+    setData({
+      revenue: totalRevenue,
+      goal: metas.goal || 153000,
+      goal_average: metas.goal_average || 175000,
+      goal_super: metas.goal_super || 220000,
+      projection,
+      ad_investment: totalAdInvestment || Number(investimento.meta_ads) || 0,
+      social_investment: totalSocialInvestment || Number(investimento.social_selling) || 0,
+      totalLeads,
+      totalConversations,
+      totalSchedules,
+      totalAttendances,
+      totalSales,
+      roas,
+      businessDays: businessDaysElapsed,
+      totalBusinessDays,
+    });
+
+    setDailyChart(chartData);
+    setIsLoading(false);
+  };
   
   // Custom Recharts tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -27,6 +159,19 @@ export const Dashboard: React.FC = () => {
     return null;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const previousRevenue = 0; // Will be calculated from previous month if data exists
+  const revenueGrowth = previousRevenue > 0 ? ((data.revenue - previousRevenue) / previousRevenue * 100) : 0;
+
   return (
     <div className="space-y-6">
       
@@ -43,10 +188,12 @@ export const Dashboard: React.FC = () => {
               <span className="text-4xl font-mono font-bold text-primary tracking-tight">
                 {formatCurrency(data.revenue)}
               </span>
-              <span className="text-success text-sm font-medium bg-success/10 px-2 py-0.5 rounded flex items-center mb-1">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                +16% v.m.
-              </span>
+              {revenueGrowth !== 0 && (
+                <span className="text-success text-sm font-medium bg-success/10 px-2 py-0.5 rounded flex items-center mb-1">
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                  {revenueGrowth > 0 ? '+' : ''}{revenueGrowth.toFixed(0)}% v.m.
+                </span>
+              )}
             </div>
             
             {/* Minimalist Goal Gauge / Bar */}
@@ -82,10 +229,10 @@ export const Dashboard: React.FC = () => {
 
         {/* Mini KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
-          <KPICard title="Projeção Atual" value={formatCurrency(data.projection)} icon={<Activity className="w-5 h-5 text-social" />} trend="+2.4%" />
-          <KPICard title="ROAS Global" value={formatRoas(13.1)} icon={<Target className="w-5 h-5 text-accent" />} trend="+1.2x" />
-          <KPICard title="Investimento (Ads)" value={formatCurrency(data.ad_investment)} icon={<HandCoins className="w-5 h-5 text-error" />} trend="R$ 9.5k" reverseTrend />
-          <KPICard title="Dias Úteis" value="18 / 22" icon={<CalendarClock className="w-5 h-5 text-recorrente" />} subtitle="Faltam 4 dias" />
+          <KPICard title="Projeção Atual" value={formatCurrency(data.projection)} icon={<Activity className="w-5 h-5 text-social" />} trend={data.projection > data.goal ? 'Acima' : 'Abaixo'} />
+          <KPICard title="ROAS Global" value={formatRoas(data.roas)} icon={<Target className="w-5 h-5 text-accent" />} trend={data.roas > 5 ? 'Bom' : 'Atenção'} />
+          <KPICard title="Investimento (Ads)" value={formatCurrency(data.ad_investment)} icon={<HandCoins className="w-5 h-5 text-error" />} trend={formatCurrency(data.social_investment)} reverseTrend />
+          <KPICard title="Dias Úteis" value={`${data.businessDays} / ${data.totalBusinessDays}`} icon={<CalendarClock className="w-5 h-5 text-recorrente" />} subtitle={`Faltam ${data.totalBusinessDays - data.businessDays} dias`} />
         </div>
       </div>
 
@@ -101,32 +248,40 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockDailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis 
-                    dataKey="day" 
-                    stroke="#6B6B80" 
-                    fontSize={12} 
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(val) => `Dia ${val}`}
-                  />
-                  <YAxis 
-                    stroke="#6B6B80" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(val) => `R$${val/1000}k`}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                  <Bar dataKey="anuncio" name="Anúncio" stackId="a" fill="#AAFF00" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="social" name="Social Selling" stackId="a" fill="#60A5FA" />
-                  <Bar dataKey="recorrente" name="Recorrentes" stackId="a" fill="#F59E0B" />
-                  <Bar dataKey="indicacao" name="Indicação" stackId="a" fill="#A78BFA" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {dailyChart.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="day" 
+                      stroke="#6B6B80" 
+                      fontSize={12} 
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => `Dia ${val}`}
+                    />
+                    <YAxis 
+                      stroke="#6B6B80" 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => `R$${val/1000}k`}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                    <Bar dataKey="anuncio" name="Anúncio" stackId="a" fill="#AAFF00" radius={[0, 0, 4, 4]} />
+                    <Bar dataKey="social" name="Social Selling" stackId="a" fill="#60A5FA" />
+                    <Bar dataKey="recorrente" name="Recorrentes" stackId="a" fill="#F59E0B" />
+                    <Bar dataKey="indicacao" name="Indicação" stackId="a" fill="#A78BFA" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-muted">
+                  <Activity className="w-12 h-12 mb-4 opacity-20" />
+                  <p className="text-sm">Nenhum lançamento diário neste mês.</p>
+                  <p className="text-xs mt-1">Use a página "Lançamento Diário" para inserir dados.</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -137,21 +292,21 @@ export const Dashboard: React.FC = () => {
             <h3 className="text-lg font-heading font-bold text-primary mb-6">Funil de Vendas Global</h3>
             
             <div className="space-y-4">
-              <FunnelStep label="Total Leads" value={data.funnel.leads} percentage={100} color="bg-secondary" />
+              <FunnelStep label="Total Leads" value={data.totalLeads} percentage={100} color="bg-secondary" />
               <div className="pl-4 border-l border-border/50 ml-4 h-4" />
-              <FunnelStep label="Conversas Iniciadas" value={data.funnel.initiated} percentage={(data.funnel.initiated/data.funnel.leads)*100} color="bg-info" />
+              <FunnelStep label="Conversas Iniciadas" value={data.totalConversations} percentage={data.totalLeads > 0 ? (data.totalConversations/data.totalLeads)*100 : 0} color="bg-info" />
               <div className="pl-4 border-l border-border/50 ml-4 h-4" />
-              <FunnelStep label="Agendamentos" value={data.funnel.scheduled} percentage={(data.funnel.scheduled/data.funnel.initiated)*100} color="bg-warning" />
+              <FunnelStep label="Agendamentos" value={data.totalSchedules} percentage={data.totalConversations > 0 ? (data.totalSchedules/data.totalConversations)*100 : 0} color="bg-warning" />
               <div className="pl-4 border-l border-border/50 ml-4 h-4" />
-              <FunnelStep label="Comparecimentos" value={data.funnel.attended} percentage={(data.funnel.attended/data.funnel.scheduled)*100} color="bg-recorrente" />
+              <FunnelStep label="Comparecimentos" value={data.totalAttendances} percentage={data.totalSchedules > 0 ? (data.totalAttendances/data.totalSchedules)*100 : 0} color="bg-recorrente" />
               <div className="pl-4 border-l border-border/50 ml-4 h-4" />
-              <FunnelStep label="Vendas Fechadas" value={data.funnel.sales} percentage={(data.funnel.sales/data.funnel.attended)*100} color="bg-success" />
+              <FunnelStep label="Vendas Fechadas" value={data.totalSales} percentage={data.totalAttendances > 0 ? (data.totalSales/data.totalAttendances)*100 : 0} color="bg-success" />
             </div>
             
             <div className="mt-6 pt-6 border-t border-border flex justify-between items-center text-sm">
               <span className="text-muted">Conversão Global</span>
               <span className="font-mono font-bold text-accent text-lg">
-                {formatPercent((data.funnel.sales / data.funnel.leads) * 100)}
+                {formatPercent(data.totalLeads > 0 ? (data.totalSales / data.totalLeads) * 100 : 0)}
               </span>
             </div>
           </CardContent>

@@ -1,32 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/CardElement';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { UserPlus, Mail, Shield, MoreVertical } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { UserPlus, Mail, Shield, Loader2, Trash2 } from 'lucide-react';
 
-const mockMembers = [
-  { id: 1, name: 'Dr. Igor Alves', email: 'igoralves@dioestetica.com', role: 'owner', status: 'ativo' },
-  { id: 2, name: 'Ana Comercial', email: 'ana@dioestetica.com', role: 'admin', status: 'ativo' },
-  { id: 3, name: 'João SDR', email: 'joao.sdr@dioestetica.com', role: 'member', status: 'ativo' },
-  { id: 4, name: 'Mariana Marketing', email: 'mariana@dioestetica.com', role: 'member', status: 'convite_pendente' },
-];
+interface Member {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+}
 
 export const Members: React.FC = () => {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const { success } = useToast();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { success, error: showError } = useToast();
 
-  const handleInvite = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  const fetchMembers = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('members')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching members:', error);
+    } else {
+      setMembers(data || []);
+    }
+    setIsLoading(false);
+  };
+
+  const handleInvite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const memberData = {
+      name: formData.get('name') as string || 'Novo Membro',
+      email: formData.get('email') as string,
+      role: formData.get('role') as string || 'member',
+      status: 'convite_pendente',
+    };
+
+    const { data, error } = await supabase
+      .from('members')
+      .insert([memberData])
+      .select();
+
+    if (error) {
+      console.error(error);
+      showError('Erro', 'Não foi possível adicionar o membro. Verifique se o email já não está cadastrado.');
+      return;
+    }
+
+    if (data && data[0]) {
+      setMembers([...members, data[0]]);
+    }
+
     setIsInviteOpen(false);
-    success('Convite Enviado', 'O usuário receberá um email com as instruções de acesso.');
+    success('Membro Adicionado', 'O membro foi registrado com sucesso na plataforma.');
+  };
+
+  const handleDelete = async (memberId: string) => {
+    const { error } = await supabase
+      .from('members')
+      .delete()
+      .eq('id', memberId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setMembers(members.filter(m => m.id !== memberId));
+    success('Membro Removido', 'O membro foi removido da plataforma.');
   };
 
   const getRoleLabel = (role: string) => {
     const roles: Record<string, string> = { owner: 'Proprietário', admin: 'Administrador', member: 'Membro' };
-    return roles[role];
+    return roles[role] || role;
   };
 
   const getRoleBadge = (role: string) => {
@@ -59,32 +121,50 @@ export const Members: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {mockMembers.map((member) => (
-                <tr key={member.id} className="hover:bg-hover/50 transition-colors group">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-elevated border border-border flex items-center justify-center font-bold text-primary">
-                        {member.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-medium text-primary">{member.name}</div>
-                        <div className="text-sm text-secondary font-mono">{member.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">{getRoleBadge(member.role)}</td>
-                  <td className="py-4 px-6">
-                    {member.status === 'ativo' 
-                      ? <Badge variant="success">Ativo</Badge> 
-                      : <Badge variant="warning">Pendente</Badge>}
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button className="p-2 text-secondary hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
                   </td>
                 </tr>
-              ))}
+              ) : members.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-muted text-sm">
+                    Nenhum membro cadastrado. Clique em "Convidar Membro" para adicionar.
+                  </td>
+                </tr>
+              ) : (
+                members.map((member) => (
+                  <tr key={member.id} className="hover:bg-hover/50 transition-colors group">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-elevated border border-border flex items-center justify-center font-bold text-primary">
+                          {member.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-medium text-primary">{member.name}</div>
+                          <div className="text-sm text-secondary font-mono">{member.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">{getRoleBadge(member.role)}</td>
+                    <td className="py-4 px-6">
+                      {member.status === 'ativo' 
+                        ? <Badge variant="success">Ativo</Badge> 
+                        : <Badge variant="warning">Pendente</Badge>}
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button 
+                        onClick={() => handleDelete(member.id)}
+                        className="p-2 text-secondary hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remover membro"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -97,11 +177,19 @@ export const Members: React.FC = () => {
       >
         <form onSubmit={handleInvite} className="space-y-6">
           <p className="text-sm text-secondary">
-            Convide colegas para acessar o DEAIOS. Eles precisarão criar uma senha no primeiro acesso.
+            Adicione membros da equipe para acessar o DEAIOS.
           </p>
 
           <Input 
+            name="name"
+            label="Nome do Membro" 
+            required 
+            placeholder="Ex: Ana Silva" 
+          />
+
+          <Input 
             label="Email do Convidado" 
+            name="email"
             type="email" 
             required 
             icon={<Mail className="w-5 h-5" />}
@@ -135,7 +223,7 @@ export const Members: React.FC = () => {
 
           <div className="pt-4 border-t border-border flex justify-end gap-3">
             <Button type="button" variant="ghost" onClick={() => setIsInviteOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="primary">Enviar Convite</Button>
+            <Button type="submit" variant="primary">Adicionar Membro</Button>
           </div>
         </form>
       </Modal>

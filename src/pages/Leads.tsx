@@ -37,7 +37,7 @@ export const Leads: React.FC = () => {
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
 
-  const { success } = useToast();
+  const { success, error: showError } = useToast();
 
   const filteredLeads = leads.filter(lead => 
     lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -57,6 +57,7 @@ export const Leads: React.FC = () => {
     
     if (error) {
       console.error('Error fetching leads:', error);
+      showError('Erro ao carregar', 'Não foi possível buscar leads do banco de dados. Verifique se a tabela "leads" existe no Supabase.');
     } else {
       setLeads(data || []);
     }
@@ -92,6 +93,7 @@ export const Leads: React.FC = () => {
 
     if (error) {
       console.error(error);
+      showError('Erro ao adicionar', 'Não foi possível salvar o lead. Verifique a conexão com o banco de dados.');
       return;
     }
 
@@ -292,7 +294,7 @@ export const Leads: React.FC = () => {
               <label className="text-sm font-medium text-primary block">Canal Origem</label>
               <select name="channel" className="w-full bg-surface border border-border rounded-xl px-4 py-3.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all text-sm" required>
                 <option value="anuncio">Anúncio</option>
-                <option value="social">Social Selling</option>
+                <option value="social_selling">Social Selling</option>
                 <option value="recorrente">Recorrente</option>
                 <option value="indicacao">Indicação</option>
               </select>
