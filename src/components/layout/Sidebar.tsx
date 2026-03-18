@@ -44,23 +44,23 @@ export const Sidebar: React.FC = () => {
       <NavLink
         to={item.to}
         className={cn(
-          "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative overflow-hidden",
+          "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden",
           isActive 
-            ? "bg-accent/10 text-accent font-medium" 
-            : "text-secondary hover:text-primary hover:bg-hover"
+            ? "bg-accent/10 border border-accent/20 text-accent font-medium shadow-[inset_0_0_20px_rgba(195,153,107,0.05)]" 
+            : "text-secondary hover:text-primary hover:bg-hover border border-transparent"
         )}
       >
         {isActive && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-r-full shadow-glow" />
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent shadow-[0_0_10px_rgba(195,153,107,0.8)]" />
         )}
-        <Icon className={cn("w-5 h-5", isChannel && !isActive && item.color, isActive && "text-accent")} />
-        <span className="text-sm">{item.label}</span>
+        <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110 duration-300", isChannel && !isActive && item.color, isActive && "text-accent drop-shadow-[0_0_8px_rgba(195,153,107,0.5)]")} />
+        <span className="text-sm tracking-wide">{item.label}</span>
       </NavLink>
     );
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-surface/80 backdrop-blur-xl border-r border-border flex flex-col pt-6 pb-4">
+    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-surface/40 backdrop-blur-2xl border-r border-border flex flex-col pt-6 pb-4 shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-50">
       <div className="px-6 mb-8 flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shadow-glow">
           <span className="text-black font-heading font-bold text-lg">D</span>

@@ -28,17 +28,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsInitialized(true);
     }, 2000);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(initTimer);
-      if (session?.user) {
+    const fetchUserProfile = async (session: any) => {
+      try {
+        const { data } = await supabase
+          .from('members')
+          .select('name, role')
+          .eq('email', session.user.email)
+          .single();
+
         setUser({
           email: session.user.email || '',
-          name: session.user.user_metadata?.name || 'Rômulo Brandão',
-          role: 'superadmin',
+          name: data?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
+          role: data?.role || 'member',
+          id: session.user.id
+        });
+      } catch (err) {
+        // Fallback
+        setUser({
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
+          role: 'member',
           id: session.user.id
         });
       }
-      setIsInitialized(true);
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(initTimer);
+      if (session?.user) {
+        fetchUserProfile(session).finally(() => setIsInitialized(true));
+      } else {
+        setIsInitialized(true);
+      }
     }).catch(() => {
       clearTimeout(initTimer);
       setIsInitialized(true);
@@ -47,12 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes (login, logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({
-          email: session.user.email || '',
-          name: session.user.user_metadata?.name || 'Rômulo Brandão',
-          role: 'superadmin',
-          id: session.user.id
-        });
+        fetchUserProfile(session);
       } else {
         setUser(null);
       }

@@ -142,7 +142,7 @@ export const Leads: React.FC = () => {
         {/* Table */}
         <div className="flex-1 overflow-auto no-scrollbar">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-elevated/90 backdrop-blur-md z-10 border-b border-border shadow-sm">
+            <thead className="sticky top-0 bg-[#0D1117]/90 backdrop-blur-md z-10 border-b border-border shadow-sm">
               <tr>
                 <th className="py-4 px-6 font-semibold text-muted text-sm uppercase tracking-wider">Lead</th>
                 <th className="py-4 px-6 font-semibold text-muted text-sm uppercase tracking-wider">Canal</th>

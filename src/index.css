@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Syne:wght@400..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Syne:wght@400..800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,22 +6,22 @@
 
 @layer base {
   :root {
-    --bg-base: #F8F9FA;
-    --bg-surface: #FFFFFF;
-    --bg-elevated: #FFFFFF;
-    --bg-hover: #F1F3F5;
+    --bg-base: #02040A;
+    --bg-surface: #0D1117;
+    --bg-elevated: #161B22;
+    --bg-hover: rgba(255, 255, 255, 0.05);
     
-    --border: #E5E7EB;
+    --border: rgba(255, 255, 255, 0.1);
     --border-bright: #C3996B; /* DioEstética Caramel */
     
     --accent: #C3996B; /* DioEstética Caramel Primary */
     --accent-dim: #A67D4E;
-    --accent-muted: rgba(195, 153, 107, 0.1);
+    --accent-muted: rgba(195, 153, 107, 0.15);
     
-    --text-primary: #1F2937; /* Dark Gray */
-    --text-secondary: #4B5563; /* Medium Gray */
-    --text-muted: #9CA3AF; /* Light Gray */
-    --text-disabled: #D1D5DB;
+    --text-primary: #F3F4F6;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --text-disabled: #4B5563;
     
     --success: #10B981;
     --warning: #F59E0B;
@@ -31,7 +31,7 @@
     --anuncio: #C3996B;
     --social: #3B82F6;
     --recorrente: #10B981;
-    --indicacao: #8B5CF6;
+    --indicacao: #A855F7;
   }
 
   body {

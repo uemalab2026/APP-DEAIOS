@@ -6,7 +6,12 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { UserPlus, Mail, Shield, Loader2, Trash2 } from 'lucide-react';
+
+const FALLBACK_URL = 'https://zyeldkinzwbknynpdmig.supabase.co';
+const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5ZWxka2luendia255bnBkbWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MjE2MDYsImV4cCI6MjA4OTA5NzYwNn0._VBMKInq5A83m9tZdyc7XbEOb3J3oD0nWUDmds__xEc';
+
 
 interface Member {
   id: string;
@@ -52,19 +57,41 @@ export const Members: React.FC = () => {
       status: 'convite_pendente',
     };
 
-    const { data, error } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('members')
       .insert([memberData])
       .select();
 
-    if (error) {
-      console.error(error);
+    if (userError) {
+      console.error(userError);
       showError('Erro', 'Não foi possível adicionar o membro. Verifique se o email já não está cadastrado.');
       return;
     }
 
-    if (data && data[0]) {
-      setMembers([...members, data[0]]);
+    // Criar o usuário no Auth (sem afetar a sessão atual)
+    const signUpClient = createClient(
+      import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY || FALLBACK_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    const { error: authError } = await signUpClient.auth.signUp({
+      email: memberData.email,
+      password: 'dioestetica@2026', // Default password
+      options: {
+        data: {
+          name: memberData.name,
+        }
+      }
+    });
+
+    if (authError) {
+      console.error('Erro Auth:', authError);
+      showError('Aviso', 'Membro criado na tabela, mas houve um erro ao criar a conta de login (Auth).');
+    }
+
+    if (userData && userData[0]) {
+      setMembers([...members, userData[0]]);
     }
 
     setIsInviteOpen(false);
