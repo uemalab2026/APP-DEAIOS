@@ -32,7 +32,7 @@ export default {
       fontFamily: {
         heading: ['Syne', 'sans-serif'],
         mono: ['DM Mono', 'monospace'],
-        sans: ['Plus Jakarta Sans', 'sans-serif'],
+        sans: ['DM Sans', 'sans-serif'],
       },
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',

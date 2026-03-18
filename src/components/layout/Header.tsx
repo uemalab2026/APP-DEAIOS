@@ -41,14 +41,14 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="h-20 bg-background/60 backdrop-blur-2xl border-b border-border sticky top-0 z-40 flex items-center justify-between px-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+    <header className="h-20 bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-40 flex items-center justify-between px-8">
       {/* Search Bar - Decorative for now */}
       <div className="flex-1 max-w-md relative hidden md:block">
         <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
         <input 
           type="text" 
           placeholder="Busque por leads, telefones..." 
-          className="w-full bg-elevated/30 border border-border rounded-full py-2.5 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 transition-all text-primary placeholder:text-muted shadow-inner"
+          className="w-full bg-elevated/50 border border-border/50 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/50 transition-all text-primary placeholder:text-muted"
         />
       </div>
 
@@ -56,7 +56,7 @@ export const Header: React.FC = () => {
       <div className="flex items-center gap-6 ml-auto">
         
         {/* Date Selector Container */}
-        <div className="flex items-center bg-elevated/40 border border-border rounded-xl p-1 shadow-inner">
+        <div className="flex items-center bg-elevated/50 border border-border/50 rounded-xl p-1">
           <button 
             onClick={handlePrevMonth}
             className="p-1.5 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
